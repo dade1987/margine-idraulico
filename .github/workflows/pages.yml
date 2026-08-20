@@ -23,7 +23,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       # Sito statico: si pubblica la cartella così com'è, senza passo di build.
+      # enablement: true fa creare il sito Pages al primo giro, così non serve
+      # passare da Impostazioni → Pages a mano.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .
