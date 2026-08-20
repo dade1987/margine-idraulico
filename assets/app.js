@@ -1,4 +1,4 @@
-import { QUESTIONS, DEFAULTS, SISTEMI } from './quiz.js';
+import { QUESTIONS, DEFAULTS, SISTEMI, SCALA_SISTEMI } from './quiz.js';
 import { computeAll } from './model.js';
 
 const WHATSAPP = '393911352526';
@@ -13,7 +13,7 @@ const SOGLIA_ALTA = 6000;
 const SOGLIA_MEDIA = 2500;
 
 const answers = { ...DEFAULTS };
-const chosen = {};           // id domanda → indice opzione, per tornare indietro
+const chosen = {};           // id domanda → indici scelti, per tornare indietro
 let step = -1;               // -1 = schermata iniziale
 let asked = [];              // domande effettivamente poste (alcune sono condizionali)
 
@@ -48,13 +48,13 @@ function renderIntro() {
   );
 
   const p = el('p', 'lead');
-  p.textContent = `Non lo so, e nessuno può saperlo al posto tuo. Però se rispondi a una decina di domande — un tocco l'una — te lo calcolo con i tuoi numeri, non con quelli di una brochure.`;
+  p.textContent = `Non lo so. E non lo sa nessuno al posto tuo. Però rispondi a queste domande e te lo dico con i tuoi numeri, non con quelli di una pubblicità.`;
   s.appendChild(p);
 
   const facts = el('div', 'facts');
   [
-    [String(visibleQuestions().length), 'domande, un tocco'],
-    ['~90"', 'e hai finito'],
+    [String(visibleQuestions().length), 'domande'],
+    ['2 min', 'e hai finito'],
     ['0', 'dati che ti chiedo'],
   ].forEach(([big, small]) => {
     const f = el('div', 'fact');
@@ -68,7 +68,7 @@ function renderIntro() {
   btn.addEventListener('click', () => { step = 0; asked = visibleQuestions(); renderStep(); });
   s.appendChild(btn);
 
-  s.appendChild(el('p', 'fineprint', 'Niente email, niente registrazione, niente cookie. Le risposte restano su questo telefono e non le vede nessuno, nemmeno io.'));
+  s.appendChild(el('p', 'fineprint', 'Niente email. Niente registrazione. Le risposte restano su questo telefono e non le vede nessuno, io compreso.'));
 
   app.appendChild(s);
 }
@@ -92,25 +92,39 @@ function renderStep() {
   s.appendChild(el('p', 'stepcount', `Domanda ${step + 1} di ${asked.length}`));
 
   s.append(el('p', 'eyebrow', q.eyebrow), el('h2', 'qtext', q.text));
+  if (q.multi) s.appendChild(el('p', 'multi-hint', 'Puoi sceglierne anche più di una.'));
   if (q.help) s.appendChild(el('p', 'qhelp', q.help));
+
+  const scelti = new Set(chosen[q.id] || []);
 
   const list = el('div', 'options');
   q.options.forEach((opt, idx) => {
-    const b = el('button', 'option');
+    const b = el('button', q.multi ? 'option multi' : 'option');
     b.type = 'button';
-    if (chosen[q.id] === idx) b.classList.add('selected');
+    if (scelti.has(idx)) b.classList.add('selected');
 
-    const main = el('span', 'option-label', opt.label);
-    b.appendChild(main);
+    b.appendChild(el('span', 'option-label', opt.label));
     if (opt.note) b.appendChild(el('span', 'option-note', opt.note));
+    if (q.multi) b.appendChild(el('span', 'tick', '✓'));
 
-    b.addEventListener('click', () => choose(q, opt, idx, b));
+    b.addEventListener('click', () => {
+      if (q.multi) toggle(q, idx, b, scelti, s);
+      else scegli(q, [idx], b);
+    });
     list.appendChild(b);
   });
   s.appendChild(list);
 
+  if (q.multi) {
+    const avanti = el('button', 'btn primary avanti', 'Avanti');
+    avanti.type = 'button';
+    avanti.disabled = scelti.size === 0;
+    avanti.addEventListener('click', () => scegli(q, [...scelti], null));
+    s.appendChild(avanti);
+  }
+
   if (step > 0) {
-    const back = el('button', 'btn ghost', '← Torna indietro');
+    const back = el('button', 'btn ghost', 'Torna indietro');
     back.type = 'button';
     back.addEventListener('click', () => { step -= 1; renderStep(); });
     s.appendChild(back);
@@ -120,28 +134,64 @@ function renderStep() {
   scrollTop();
 }
 
-function choose(q, opt, idx, button) {
-  Object.assign(answers, opt.set || {});
-  for (const [k, v] of Object.entries(opt.bump || {})) {
-    answers[k] = (answers[k] ?? 0) + v;
-  }
-  chosen[q.id] = idx;
+function toggle(q, idx, button, scelti, screen) {
+  if (scelti.has(idx)) { scelti.delete(idx); button.classList.remove('selected'); }
+  else { scelti.add(idx); button.classList.add('selected'); }
 
-  button.classList.add('selected');
-  [...button.parentElement.children].forEach((c) => { if (c !== button) c.classList.add('dimmed'); });
+  const avanti = screen.querySelector('.avanti');
+  if (avanti) avanti.disabled = scelti.size === 0;
+}
+
+/**
+ * Applica le risposte scelte.
+ *
+ * Con piu' risposte i valori numerici si mediano: chi fa il rapportino un po' a
+ * mano e un po' la sera sta davvero nel mezzo. I valori testuali no: per il
+ * sistema in uso vince il piu' attrezzato fra quelli indicati, perche' se hai
+ * gia' un gestionale completo quello che ti resta da recuperare lo decide lui,
+ * non il blocchetto che tieni ancora in furgone.
+ */
+function scegli(q, indici, button) {
+  chosen[q.id] = indici;
+
+  const numerici = {};
+  indici.forEach((i) => {
+    const opt = q.options[i];
+    for (const [k, v] of Object.entries(opt.set || {})) {
+      if (typeof v === 'number') (numerici[k] ||= []).push(v);
+      else if (k === 'sistema') {
+        const attuale = SCALA_SISTEMI.indexOf(answers.sistema);
+        const nuovo = SCALA_SISTEMI.indexOf(v);
+        if (nuovo > attuale || indici.length === 1) answers.sistema = v;
+      } else answers[k] = v;
+    }
+    for (const [k, v] of Object.entries(opt.bump || {})) {
+      answers[k] = (answers[k] ?? 0) + v;
+    }
+  });
+
+  for (const [k, valori] of Object.entries(numerici)) {
+    answers[k] = valori.reduce((a, b) => a + b, 0) / valori.length;
+  }
+
+  if (button) {
+    button.classList.add('selected');
+    [...button.parentElement.children].forEach((c) => { if (c !== button) c.classList.add('dimmed'); });
+  }
 
   // Una battuta breve prima di andare avanti: e' quello che rende il quiz una
-  // conversazione invece di un modulo. Senza reazione si passa e basta.
-  if (opt.reaction) {
-    const r = el('p', 'reaction', opt.reaction);
+  // conversazione invece di un modulo. Con piu' risposte si prende la prima.
+  const reazione = indici.map((i) => q.options[i].reaction).find(Boolean);
+  if (reazione && button) {
+    const r = el('p', 'reaction', reazione);
     button.parentElement.after(r);
     requestAnimationFrame(() => r.classList.add('in'));
-    setTimeout(next, 1150);
+    setTimeout(avanti, 1150);
   } else {
-    setTimeout(next, 260);
+    setTimeout(avanti, reazione ? 260 : 200);
   }
 
-  function next() { step += 1; renderStep(); }
+  function avanti() { step += 1; renderStep(); }
 }
 
 /* ---------- il risultato ---------- */
@@ -161,7 +211,7 @@ function renderResult() {
   amount.textContent = money.format(0);
   s.appendChild(amount);
 
-  s.appendChild(el('p', 'result-sub', 'Solo con quello che il gestionale fa già così com\'è, senza configurare niente.'));
+  s.appendChild(el('p', 'result-sub', 'Solo con quello che il gestionale fa già adesso. Senza impostare niente.'));
 
   const equiv = el('p', 'equivalence');
   equiv.style.opacity = '0';
@@ -208,8 +258,11 @@ function revealRows(host, r, done) {
     setTimeout(() => {
       const row = el('div', 'rrow');
       row.append(el('span', 'rrow-name', item.entry.name), el('span', 'rrow-val', money.format(item.value)));
-      const why = el('p', 'rrow-why', item.entry.plain);
-      row.appendChild(why);
+      if (item.entry.how) {
+        const how = el('div', 'rrow-how');
+        how.append(el('span', 'how-label', 'Come li recuperi'), el('p', null, item.entry.how));
+        row.appendChild(how);
+      }
       host.appendChild(row);
       requestAnimationFrame(() => row.classList.add('in'));
       if (n === items.length - 1) setTimeout(done, 300);
@@ -225,8 +278,8 @@ function showEquivalence(node, r) {
 
   let text;
   if (t < 800) text = 'Poco più di una giornata di lavoro. Nel tuo caso è davvero poca cosa.';
-  else if (giornate >= 20) text = `Sono ${num.format(giornate)} giornate di lavoro all'anno. Un mese e mezzo, regalato.`;
-  else text = `Sono ${num.format(giornate)} giornate di lavoro, o ${num.format(interventi)} interventi fatti gratis.`;
+  else if (giornate >= 20) text = `Sono ${num.format(giornate)} giornate di lavoro. Regalate ogni anno.`;
+  else text = `Sono ${num.format(giornate)} giornate di lavoro. Oppure ${num.format(interventi)} interventi fatti gratis.`;
 
   node.textContent = text;
   node.style.transition = 'opacity .6s ease';
@@ -257,8 +310,8 @@ function buildAfterReveal(host, r) {
     parte disonesta di ogni conto di questo tipo. */
 function timelineBlock(host, r) {
   const box = el('details', 'block timeline-block');
-  box.appendChild(el('summary', null, `In quanto tempo li recuperi — il primo anno ${money.format(r.firstYear)}`));
-  box.appendChild(el('p', 'block-sub', `Non tutto arriva il primo giorno. Il primo anno ne vedi circa ${money.format(r.firstYear)}: dal secondo in poi vale il totale pieno, perché le voci più lente sono partite.`));
+  box.appendChild(el('summary', null, `In quanto tempo li recuperi. Il primo anno ${money.format(r.firstYear)}`));
+  box.appendChild(el('p', 'block-sub', `Non arriva tutto il primo giorno. Il primo anno ne vedi circa ${money.format(r.firstYear)}. Dal secondo anno vale il totale pieno.`));
 
   const line = el('div', 'timeline');
   const buckets = [
@@ -284,7 +337,7 @@ function timelineBlock(host, r) {
     b.items.forEach((x) => {
       const li = el('li');
       li.append(el('b', null, x.entry.name));
-      li.append(document.createTextNode(` — ${x.entry.rampNote}`));
+      li.append(document.createTextNode(`. ${x.entry.rampNote}`));
       ul.appendChild(li);
     });
     col.appendChild(ul);
@@ -307,7 +360,7 @@ function baselineNote(host, r) {
   const box = el('div', 'note-box');
   box.append(el('b', null, 'Ho già tolto quello che fai da solo. '));
   box.append(document.createTextNode(
-    `Hai detto che usi ${SISTEMI[sistema]}, quindi ho scalato ${money.format(tolto)} dal conto: quella parte la stai già recuperando. Il numero sopra è solo quello che resta.`
+    `Hai detto che usi ${SISTEMI[sistema]}. Quella parte la recuperi già, quindi ho tolto ${money.format(tolto)} dal conto. Sopra c'è solo quello che resta.`
   ));
   host.appendChild(box);
 }
@@ -315,13 +368,17 @@ function baselineNote(host, r) {
 function configBlock(host, r) {
   const box = el('details', 'block config-block');
   box.appendChild(el('summary', null, `Ce n'è altri ${money.format(r.configTotal)}, ma va configurato`));
-  box.appendChild(el('p', 'block-sub', 'Queste cose il gestionale le sa fare, ma partono spente: finché non ci si mette il tuo prezzo orario, o non si censiscono i furgoni, valgono zero. Per questo non le ho sommate sopra.'));
+  box.appendChild(el('p', 'block-sub', 'Queste cose il gestionale le sa fare, ma partono spente. Finché non ci metti il tuo prezzo, o non conti cosa c\'è nei furgoni, valgono zero. Per questo non le ho sommate sopra.'));
 
   r.config.sort((a, b) => b.value - a.value).forEach((item) => {
     const row = el('div', 'rrow in');
     row.append(el('span', 'rrow-name', item.entry.name), el('span', 'rrow-val', money.format(item.value)));
-    row.appendChild(el('p', 'rrow-why', item.entry.plain));
-    row.appendChild(el('p', 'rrow-needs', `Serve: ${item.entry.needs}`));
+    if (item.entry.how) {
+      const how = el('div', 'rrow-how');
+      how.append(el('span', 'how-label', 'Come li recuperi'), el('p', null, item.entry.how));
+      row.appendChild(how);
+    }
+    row.appendChild(el('p', 'rrow-needs', `Prima però devi: ${item.entry.needs}`));
     box.appendChild(row);
   });
 
@@ -337,7 +394,7 @@ function ctaBlock(host, r) {
     // serve" e' l'unico di cui ci si fida quando invece dice che serve.
     box.classList.add('quiet');
     box.appendChild(el('h3', null, 'Nel tuo caso, lascia stare'));
-    box.appendChild(el('p', null, `${money.format(r.operativeTotal)} all'anno non giustificano di cambiare il modo in cui lavori. Il gestionale te lo ripaghi quando i numeri sono altri; adesso non lo sono, e dirti il contrario sarebbe una presa in giro. Se fra un anno sei cresciuto, questo conto lo rifai in novanta secondi.`));
+    box.appendChild(el('p', null, `${money.format(r.operativeTotal)} all'anno non valgono il fastidio di cambiare come lavori. Il gestionale si ripaga con altri numeri. Adesso non ci sono, e dirti il contrario sarebbe una presa in giro. Se fra un anno sei cresciuto, torna qui e rifai il conto.`));
     host.appendChild(box);
     return;
   }
@@ -345,8 +402,8 @@ function ctaBlock(host, r) {
   const forte = r.operativeTotal >= SOGLIA_ALTA;
   box.appendChild(el('h3', null, forte ? 'Questi soldi ci sono già. Vuoi vedere come si recuperano?' : 'Vale la pena guardarci dentro?'));
   box.appendChild(el('p', null, forte
-    ? `${money.format(r.operativeTotal)} all'anno non sono lavoro in più da trovare: sono lavoro che hai già fatto e che non è arrivato in fattura. Ti faccio vedere in dieci minuti come il gestionale li intercetta, sul tuo telefono, con un intervento vero dei tuoi.`
-    : `${money.format(r.operativeTotal)} all'anno non ti cambiano la vita, ma non sono nemmeno pochi. Se vuoi, ti mostro in dieci minuti da dove escono, senza impegno e senza presentazioni.`));
+    ? `Non è lavoro in più da trovare. È lavoro che hai già fatto e che non è arrivato in fattura. In dieci minuti ti faccio vedere come il gestionale lo prende, sul tuo telefono, con un intervento vero dei tuoi.`
+    : `${money.format(r.operativeTotal)} all'anno non ti cambiano la vita. Però non sono pochi. Se vuoi ti mostro in dieci minuti da dove escono. Senza impegno.`));
 
   const testo = `Ciao Davide, ho fatto il quiz sul margine. Mi esce ${money.format(r.operativeTotal)} all'anno a regime, ${money.format(r.firstYear)} il primo anno${r.configTotal > 0 ? `, piu ${money.format(r.configTotal)} da configurare` : ''}. Vorrei vedere la demo del gestionale.`;
   const a = el('a', 'btn primary big whatsapp');
@@ -356,7 +413,7 @@ function ctaBlock(host, r) {
   a.textContent = 'Scrivimi su WhatsApp';
   box.appendChild(a);
 
-  box.appendChild(el('p', 'fineprint', `Sono Davide Cavallini, Cavallini Service, Noale. Rispondo io, non un centralino. Se poi non ti interessa me lo dici e finisce lì.${totale > 0 ? '' : ''}`));
+  box.appendChild(el('p', 'fineprint', 'Sono Davide Cavallini, Cavallini Service di Noale. Rispondo io, non un centralino. Se poi non ti interessa me lo dici e finisce lì.'));
 
   host.appendChild(box);
 }
@@ -375,15 +432,18 @@ function plainExplanation(host, r) {
   const body = el('div', 'explain-body');
 
   body.appendChild(el('p', null,
-    `Il conto l'hai fatto tu, io ho solo moltiplicato. Mi hai detto quanti siete e quanti interventi fate: sono circa ${num.format(r.derived.interventiAnno)} interventi in un anno. Ogni cosa che si perde una volta sola, si perde ${num.format(r.derived.interventiAnno)} volte.`));
+    `Il conto l'hai fatto tu. Io ho solo moltiplicato. Mi hai detto quanti siete e quanti interventi fate: sono circa ${num.format(r.derived.interventiAnno)} interventi in un anno. Ogni cosa che perdi una volta sola, la perdi ${num.format(r.derived.interventiAnno)} volte.`));
 
   body.appendChild(el('p', null,
-    `Poi ho preso quello che mi hai detto che oggi va perso — i minuti sul rapportino, i pezzi che non arrivano in fattura, i guasti che nessuno riprende — e l'ho moltiplicato per quel numero. Il tempo l'ho contato a quanto ti costa un'ora di tecnico, non a quanto la vendi: risparmiare un'ora non ti fa guadagnare il prezzo di vendita, ti fa risparmiare il costo. E l'ho contato solo per metà, perché un'ora libera diventa soldi soltanto se la riempi con altro lavoro.`));
+    `Poi ho preso quello che mi hai detto che oggi va perso. I minuti sul rapportino, i pezzi che non arrivano in fattura, i guasti che nessuno riprende. E l'ho moltiplicato per quel numero.`));
+
+  body.appendChild(el('p', null,
+    `Il tempo l'ho contato a quanto ti costa un'ora di tecnico, non a quanto la vendi. Risparmiare un'ora non ti fa guadagnare il prezzo di vendita: ti fa risparmiare il costo. E l'ho contato solo per metà, perché un'ora libera diventa soldi solo se la riempi con altro lavoro.`));
 
   const ul = el('ul', 'explain-list');
   r.operative.filter((x) => x.value > 0).sort((a, b) => b.value - a.value).forEach((item) => {
     const li = el('li');
-    li.append(el('b', null, `${money.format(item.value)} — ${item.entry.name}. `));
+    li.append(el('b', null, `${money.format(item.value)}. ${item.entry.name}. `));
     li.append(document.createTextNode(item.entry.problem));
     if (item.factor < 1) {
       li.append(el('em', null, ` Di questa voce ti ho lasciato solo la parte che non copri già.`));
@@ -393,10 +453,10 @@ function plainExplanation(host, r) {
   body.appendChild(ul);
 
   body.appendChild(el('p', null,
-    `Sul tempo: il rapportino e la firma valgono dal primo intervento, il pezzo fuori preventivo appena colleghi gli interventi ai preventivi, i guasti segnalati ci mettono qualche mese perché un preventivo accettato ha il suo giro. Per questo il primo anno vale ${money.format(r.firstYear)} e non ${money.format(r.operativeTotal)}.`));
+    `Poi c'è il tempo. Il rapportino e la firma valgono dal primo intervento. Il pezzo fuori preventivo appena colleghi gli interventi ai preventivi. I guasti segnalati ci mettono qualche mese, perché un preventivo accettato ha il suo giro. Per questo il primo anno vale ${money.format(r.firstYear)} e non ${money.format(r.operativeTotal)}.`));
 
   body.appendChild(el('p', 'warn-line',
-    `Due cose che è giusto tu sappia. Primo: sono stime costruite sulle tue risposte, non misure — quanto stai davvero regalando lo sa dire solo il gestionale, e solo dopo qualche mese che lo usi. Secondo: dove non ti ho chiesto niente ho usato valori prudenti, cioè bassi, non ottimistici.`));
+    `Due cose che è giusto tu sappia. La prima: queste sono stime fatte sulle tue risposte, non misure. Quanto stai davvero regalando lo sa dire solo il gestionale, dopo qualche mese che lo usi. La seconda: dove non ti ho chiesto niente ho messo valori bassi, non ottimistici.`));
 
   sourcesBlock(body, r);
 
@@ -434,38 +494,38 @@ function sourcesBlock(host, r) {
     {
       t: 'Costo orario del tecnico',
       v: `${answers.costoOrarioAzienda} €/h`,
-      k: 'dato ufficiale — Nord Italia',
-      d: `Le tabelle ministeriali sul costo del lavoro in edilizia per il 2026 danno un costo orario pieno fra 27 e 29 € per un operaio comune: paga, contributi, Cassa Edile, TFR e ore non lavorate comprese. La retribuzione lorda nelle costruzioni sta molto più in basso — ISTAT rileva 13,7 €/h — e la differenza fra i due numeri è esattamente quella che un artigiano dimentica quando fa il conto a mente. Varia per provincia: circa 27 € a Bologna, oltre 43 € ad Aosta.`,
+      k: 'dato ufficiale, Nord Italia',
+      d: `Le tabelle del Ministero per l'edilizia 2026 dicono che un operaio costa fra 27 e 29 € l'ora. Dentro ci sono paga, contributi, Cassa Edile, TFR e le ore non lavorate. La paga in busta è molto meno: l'ISTAT dice 13,7 € l'ora. La differenza è quella che si dimentica quando si fa il conto a mente. Cambia da provincia a provincia: 27 € a Bologna, oltre 43 € ad Aosta.`,
     },
     {
       t: 'Prezzo orario di vendita',
       v: `${answers.prezzoOrarioVendita} €/h`,
-      k: 'rilevazioni di mercato — Nord Italia',
-      d: `Le rilevazioni sui prezzi degli idraulici in Italia danno 40-70 €/h per interventi ordinari in orario di lavoro, con il Nord sopra la media nazionale (si parla di un 30-40% in più rispetto al Sud) e Milano e Torino oltre i 70. Resto sulla parte bassa della fascia del Nord, non sulla media italiana. Il diritto di chiamata che uso, 25 €, sta dentro la media rilevata di 20-30 € per l'intervento ordinario; fuori orario le stesse fonti arrivano a 80-120 €, e lì non ci vado.`,
+      k: 'rilevazioni di mercato, Nord Italia',
+      d: `In Italia un idraulico si fa pagare fra 40 e 70 € l'ora, di giorno. Al Nord si sta più in alto: si parla di un 30-40% più che al Sud. A Milano e a Torino si superano i 70. Io sto sulla parte bassa del Nord. Il diritto di chiamata che uso, 25 €, sta nella media di 20-30 €. Fuori orario le stesse fonti arrivano a 80-120 €, ma lì non ci vado.`,
     },
     {
       t: 'Minuti per rapportino',
       v: `${answers.minutiRapportinoOggi} min`,
       k: 'indagine di settore, usata al ribasso',
-      d: `Le indagini sul field service parlano di circa 22 minuti a rapportino e di un 18-30% del tempo speso in attività amministrative. Sono numeri di chi vende software di field service, quindi vanno presi con le molle: qui ne uso fra 3 e 14 a seconda di come hai risposto, meno della metà di quanto dichiarano loro.`,
+      d: `Le indagini sul settore parlano di 22 minuti per rapportino. E dicono che fra il 18 e il 30% del tempo se ne va in scartoffie. Sono numeri di chi vende programmi, quindi vanno presi con le molle. Io uso fra 3 e 14 minuti, meno della metà di quello che dicono loro.`,
     },
     {
       t: 'Materiale che si disperde',
       v: `${answers.pctDispersione || 0}%`,
       k: 'stima di settore',
-      d: `Nelle costruzioni si stima che furti e perdite aggiungano fra l'1% e il 5% ai costi di progetto. La frase che conta però è un'altra: se non confronti quello che consegni con quello che viene installato, il furto sembra spreco, e finisci per risolvere un problema di sprechi che è un problema di controllo. Uso 0,5% se mi hai detto che tieni una lista, 5% solo se mi hai detto tu che sparisce roba.`,
+      d: `Nell'edilizia si stima che furti e perdite pesino fra l'1% e il 5% del costo di un lavoro. Ma la frase importante è un'altra: se non confronti quello che compri con quello che monti, il furto ti sembra spreco. E provi a risolvere un problema di sprechi che è un problema di controllo. Uso 0,5% se mi hai detto che tieni una lista. Uso 5% solo se me l'hai detto tu che sparisce roba.`,
     },
     {
       t: 'Ore per intervento',
       v: `${r.derived.oreMedieIntervento.toFixed(1)} h`,
       k: 'ricavato dalle tue risposte',
-      d: `Non è una risposta tua: la ricavo dal ritmo che hai dichiarato, contando circa due terzi della giornata come tempo davvero sul lavoro. Serve a non far uscire conti impossibili, tipo venticinque interventi da un'ora e mezza dentro una settimana da quaranta ore.`,
+      d: `Questa non me l'hai detta tu. La ricavo da quanti interventi fai, contando due terzi della giornata come tempo davvero sul lavoro. Serve a non far uscire conti impossibili, tipo venticinque interventi da un'ora e mezza in una settimana da quaranta ore.`,
     },
     {
       t: `Un'ora risparmiata vale mezz'ora di soldi`,
       v: '50%',
       k: 'scelta prudenziale dichiarata',
-      d: `Il tempo che ti liberi diventa margine solo se lo riempi con altro lavoro fatturabile. Altrimenti è comodità, che un valore ce l'ha ma non entra in cassa. Per questo dimezzo tutte le voci di tempo, ed è il taglio più grosso che mi faccio da solo.`,
+      d: `Il tempo che ti liberi diventa soldi solo se lo riempi con altro lavoro. Se no è comodità: un valore ce l'ha, ma in cassa non entra. Per questo tutte le voci di tempo le taglio a metà. È il taglio più grosso che mi faccio da solo.`,
     },
   ];
 
@@ -474,7 +534,7 @@ function sourcesBlock(host, r) {
       t: 'Tetto sul totale',
       v: '9% del fatturato',
       k: 'rete di sicurezza, e qui è scattata',
-      d: `Con le tue risposte il conto grezzo usciva sopra il 9% del fatturato che stimo per te, e l'ho tagliato fino a lì, abbassando tutte le voci nella stessa proporzione. Sopra quella soglia il numero smette di descrivere un'impresa vera, e uno che non riconosci come tuo non ti serve a niente.`,
+      d: `Con le tue risposte il conto usciva sopra il 9% di quello che secondo me fatturi. L'ho tagliato fino a lì, abbassando tutte le voci allo stesso modo. Sopra quella soglia il numero non descrive più un'azienda vera. E un numero che non riconosci come tuo non ti serve a niente.`,
     });
   }
 
@@ -487,7 +547,7 @@ function sourcesBlock(host, r) {
   });
 
   body.appendChild(el('p', 'source-note',
-    `I riferimenti valgono per il Nord Italia: più a sud tariffe e costo del lavoro scendono, e con loro tutto il conto. Nessuna di queste è una legge di natura, e le percentuali sul field service arrivano da chi ha interesse a farle sembrare alte: dove c'era un intervallo ho preso il valore basso, e dove il numero era loro l'ho più che dimezzato.`));
+    `Questi numeri valgono per il Nord Italia. Più a sud le tariffe scendono, e con loro tutto il conto. Nessuno di questi è una legge: dove la fonte dava un intervallo ho preso il numero basso, e dove il numero veniva da chi vende programmi l'ho più che dimezzato.`));
 
   det.appendChild(body);
   host.appendChild(det);
@@ -499,6 +559,7 @@ function restartBlock(host) {
   b.type = 'button';
   b.addEventListener('click', () => {
     Object.assign(answers, DEFAULTS);
+    answers.sistema = SCALA_SISTEMI[0];
     for (const k of Object.keys(chosen)) delete chosen[k];
     step = -1;
     renderIntro();

@@ -266,6 +266,45 @@ main { max-width: 680px; margin: 0 auto; padding: 0 20px 90px; }
 
 .option.dimmed { opacity: .35; }
 
+/* ---------- risposta multipla ---------- */
+
+.multi-hint {
+  margin: 0 0 4px;
+  font-size: .86rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.option.multi { position: relative; padding-right: 52px; }
+
+.option.multi .tick {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--line-strong);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: .8rem;
+  font-weight: 700;
+  color: transparent;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.option.multi.selected .tick {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Con la scelta multipla non si passa da soli: serve un Avanti, e finche' non
+   si sceglie qualcosa resta spento invece di sparire, cosi si vede che c'e'. */
+.btn.avanti { width: 100%; margin-top: 18px; padding: 15px; font-size: 1.02rem; }
+.btn.avanti:disabled { opacity: .4; cursor: not-allowed; }
+
 .reaction {
   margin: 16px 0 0;
   padding: 13px 16px;
@@ -350,6 +389,29 @@ main { max-width: 680px; margin: 0 auto; padding: 0 20px 90px; }
 }
 
 .rrow-why { grid-column: 1 / -1; margin: 2px 0 0; color: var(--ink-soft); font-size: .88rem; }
+
+/* La parte che l'idraulico legge davvero: non cosa fa il programma, ma cosa
+   succede a lui il giorno che lo usa. Sta dentro un riquadro suo perche' e'
+   una risposta a una domanda diversa dal titolo. */
+.rrow-how {
+  grid-column: 1 / -1;
+  margin-top: 10px;
+  background: var(--bg-sunken);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+
+.how-label {
+  display: block;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 5px;
+}
+
+.rrow-how p { margin: 0; font-size: .91rem; color: var(--ink); line-height: 1.5; }
 .rrow-needs { grid-column: 1 / -1; margin: 6px 0 0; color: var(--warn); font-size: .82rem; }
 
 .after-reveal { margin-top: 30px; }

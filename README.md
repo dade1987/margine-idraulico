@@ -12,18 +12,27 @@ che esce da dieci risposte è una conclusione di chi legge.
 
 ## Come funziona
 
-1. **Il quiz** — una domanda per schermata, opzioni tappabili, una battuta di reazione ogni
-   tanto. La prima domanda è sempre *cosa usi adesso*: chi ha già un gestionale completo si
-   vede scalare quasi tutto, e glielo si dice.
-2. **La stima** — il numero sale contando, poi compaiono le voci che lo compongono, ognuna
-   con una riga in italiano su cosa fa il gestionale. Niente formule, niente percentuali,
-   niente nomi di file.
-3. **Il pulsante WhatsApp** — subito sotto, con il risultato già scritto nel messaggio. Ma
-   solo sopra 2.500 €/anno: **sotto quella soglia la pagina dice di lasciar perdere**. Un
-   venditore che sa dire "a te non serve" è l'unico di cui ci si fida quando dice il
-   contrario.
-4. **Il resto è chiuso** — tempi di recupero, voci che richiedono configurazione, e "come ho
-   fatto questo conto" con le fonti. Si apre solo chi vuole.
+1. **Il quiz** — una domanda per schermata, opzioni da toccare. Su alcune si può scegliere
+   più di una risposta, perché uno può usare la carta *e* un gestionale per le fatture: in
+   quel caso i valori numerici si mediano, mentre per il sistema in uso vince il più
+   attrezzato fra quelli indicati.
+2. **La stima** — il numero sale contando, poi compaiono le voci. Ognuna ha un riquadro
+   **"come li recuperi"** che racconta cosa succede in pratica il giorno che lo usi: non
+   cosa fa il programma, ma cosa fa la persona.
+3. **Il pulsante WhatsApp** — subito sotto, col risultato già scritto nel messaggio. Solo
+   sopra 2.500 €/anno: **sotto quella soglia la pagina dice di lasciar perdere**.
+4. **Il resto è chiuso** — tempi di recupero, voci da configurare, come è stato fatto il
+   conto e da dove vengono i numeri. Lo apre solo chi vuole.
+
+## Leggibilità
+
+Il testo è misurato con l'**indice Gulpease** (Lucisano e Piemontese, 1988), l'unica formula
+di leggibilità tarata sull'italiano: `89 + (300 × frasi − 10 × lettere) / parole`. Sotto 60
+un testo è difficile per chi ha la licenza media, sotto 80 per chi ha la licenza elementare.
+
+Misurato sulla prosa vera di ogni schermata (non sulle etichette dei pulsanti, che non sono
+periodi), il sito sta fra **71 e 104**, con il risultato a 83. Niente incisi con la lineetta,
+niente notazioni da cronometro, frasi sotto le dieci parole in media.
 
 ## Perché i numeri stanno in piedi
 
