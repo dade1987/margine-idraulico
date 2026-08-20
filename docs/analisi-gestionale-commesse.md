@@ -20,6 +20,44 @@ il limite è riportato qui invece di essere ignorato.
   `EnergyBroker`, `PublicProcurement`, `Production`, `Bom`. Sono verticali di altri
   mestieri: presenti e funzionanti, ma senza effetto sul margine di un idraulico.
 
+## Come il calcolatore usa questa analisi
+
+Dalla versione a quiz, il sito non mostra **nessun** numero prima che l'utente abbia
+risposto: un importo affermato all'ingresso è una promessa di chi vende, lo stesso importo
+che esce da dieci risposte è una conclusione di chi legge. Le domande sono in
+`assets/quiz.js`, le voci economiche in `assets/model.js`.
+
+Sopra le formule di questo documento agiscono quattro correzioni, tutte dichiarate anche
+nella pagina:
+
+| Correzione | Cosa fa | Perché |
+|---|---|---|
+| **Situazione di partenza** | Ogni voce ha un fattore per sistema già in uso (carta / Excel / gestionale solo fatture / gestionale completo) | Chi ha già un gestionale completo non ha lo stesso recuperabile di chi lavora a memoria. I fattori non sono uguali fra loro: il tempo del rapportino lo azzera qualunque gestionale (0,2), il confronto a quantità contro il preventivo quasi nessuno lo fa (0,55) |
+| **Tempo in denaro (×0,5)** | Le voci di solo tempo valgono metà | Un'ora risparmiata diventa margine solo se la riempi con lavoro fatturabile. È il taglio più grosso, ed è auto-inflitto |
+| **Disciplina per dimensione** | Le percentuali di dispersione si smussano al crescere della squadra (1/(1+(n−1)·0,12)) | Con sei tecnici c'è già qualcuno che fattura: le percentuali da artigiano solitario non reggono. Non si applica al materiale che sparisce, che al contrario peggiora quando il titolare non è più sul furgone |
+| **Tetto sul totale** | Massimo 9% del fatturato stimato per le voci operative, 12% per quelle da configurare; se scatta, tutte le voci scendono in proporzione | Moltiplicare percentuali su migliaia di interventi porta in fretta a cifre che nessuna impresa riconosce come proprie. Un numero che chi legge non riconosce non è ambizioso, è falso |
+
+Le ore per intervento non sono più un parametro libero: si ricavano dal ritmo dichiarato
+(due terzi di una settimana da 40 ore diviso il numero di interventi), perché venticinque
+interventi da un'ora e mezza in una settimana non stanno in piedi.
+
+### Riferimenti esterni usati per i valori non chiesti
+
+Etichettati per quello che sono. I riferimenti valgono per il **Nord Italia**, e dove una
+fonte dà un intervallo si prende il valore basso.
+
+| Valore | Riferimento | Natura della fonte |
+|---|---|---|
+| Costo orario pieno 29-34 €/h | Tabelle ministeriali sul costo del lavoro in edilizia 2026: 27-29 € per operaio comune, con forte variabilità provinciale (≈27 € Bologna, >43 € Aosta). ISTAT rileva 13,7 €/h di retribuzione oraria nelle costruzioni: la differenza fra retribuzione e costo pieno è il punto | Dato ufficiale |
+| Prezzo di vendita 45-55 €/h | Rilevazioni di mercato: 40-70 €/h in orario ordinario, Nord sopra la media nazionale (+30-40% rispetto al Sud), Milano e Torino oltre i 70. Si resta sulla parte bassa della fascia del Nord | Rilevazione di mercato |
+| Diritto di chiamata 25 € | Media rilevata 20-30 € per l'intervento ordinario (fuori orario le stesse fonti indicano 80-120 €, non usati) | Rilevazione di mercato |
+| Minuti per rapportino 3-14 | Le indagini sul field service indicano ~22 minuti a rapportino e 18-30% del tempo in attività amministrative. Sono numeri di fornitori di software: qui si usa meno della metà | Indagine di settore, usata al ribasso |
+| Dispersione materiale 0,5-5% | Nelle costruzioni furti e perdite sono stimati fra l'1% e il 5% dei costi di progetto. Il 5% si applica solo a chi dichiara lui stesso che sparisce roba | Stima di settore |
+
+Non è stato trovato un dato citabile sulla dimensione media delle imprese ATECO 43.22 in
+Lombardia e Veneto, quindi **non ne viene usato nessuno**: la dimensione la dichiara
+l'utente rispondendo.
+
 ## Avvertenza sui numeri
 
 Il gestionale sa misurare a consuntivo quanto materiale è uscito fuori preventivo
@@ -473,6 +511,40 @@ quel ricavo lo generano davvero.
 
 **Dipendenze.** Inserire il costo orario aziendale reale e caricare i DDT dei fornitori sulle
 commesse. Se subappalti molto, il margine che vedi sarà più roseo del vero.
+
+---
+
+### 3.6-bis Il materiale che esce e non torna
+
+**File e classi**
+
+- `Modules/Inventory/Application/Actions/CreateInventoryMovementAction.php`
+- `Modules/Inventory/Application/Queries/GetStockSnapshotQuery.php`
+- `Modules/Inventory/Database/Migrations/2026_03_09_000001_add_vehicle_id_to_warehouses_table.php` — il magazzino si lega a un veicolo, ed è questo che rende il furgone un magazzino con un saldo
+- `Modules/Billing/Application/Actions/ReconcileSupplierInvoiceWithDeliveryNotesAction.php`
+
+**Stato reale — richiede configurazione.** I movimenti, i magazzini e il legame
+magazzino-veicolo esistono. `Modules/Inventory` è però escluso dal gate di copertura
+(`phpunit.xml`, riga 23), quindi la garanzia è più debole che altrove.
+
+**Problema operativo risolto.** Il materiale esce dal magazzino, sale sul furgone e non
+compare in nessun documento. Non è una dimenticanza di fatturazione: è roba che non si
+trova più. È il caso che un cliente ha descritto così — dipendenti che vendono il materiale
+dai cantieri, quantità caricate a spanne, e nessuno che se ne accorga.
+
+**Impatto economico considerato.** Percentuale del materiale acquistato in un anno.
+
+**Formula**
+
+```
+materiale acquistato in un anno × % che si disperde
+```
+
+**Confidenza: bassa.** La percentuale la dichiara l'utente rispondendo a una domanda sul
+furgone, che compare solo se ha dipendenti: da solo, il furgone è la propria tasca.
+
+**Dipendenze.** Censire i prodotti, creare un magazzino per ogni furgone, registrare i
+carichi. È la configurazione più lunga fra quelle elencate.
 
 ---
 
