@@ -1,5 +1,7 @@
 # Margine Idraulici
 
+**Online su → https://dade1987.github.io/margine-idraulico/**
+
 Web app statica che stima quanto lascia sul tavolo, ogni anno, un'impresa idraulica italiana
 — usando **solo** le funzioni che nel pannello `gestionale_commesse` sono state verificate
 una per una nel codice.
@@ -41,17 +43,22 @@ python3 -m http.server 8000
 
 ## Pubblicazione su GitHub Pages
 
-Impostazioni → Pages → *Deploy from a branch* → ramo `main`, cartella `/ (root)`.
-
-Il sito viene servito all'indirizzo che GitHub ricava dal nome del repository:
+Il sito è pubblicato qui:
 
 ```
 https://dade1987.github.io/margine-idraulico/
 ```
 
+La sorgente è impostata su **GitHub Actions**: ogni push su `main` fa ripartire
+`.github/workflows/pages.yml`, che carica la cartella così com'è — nessun passo di build.
+
 Tutti i riferimenti a file sono relativi, quindi il sito non dipende dal percorso su cui
 viene pubblicato: se un domani il repository cambia nome, o finisce sotto un dominio
 personalizzato, continua a funzionare senza modificare una riga.
+
+Se il deploy fallisce su `configure-pages` con *"Get Pages site failed"*, vuol dire che la
+sorgente Pages è tornata su *Deploy from a branch*: va rimessa su **GitHub Actions** in
+Impostazioni → Pages. Il token del workflow non ha il permesso di crearla da solo.
 
 ## I numeri
 
