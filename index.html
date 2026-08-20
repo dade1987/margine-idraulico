@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Margine Idraulici</title>
+<meta name="description" content="Quanto lascia sul tavolo un'impresa idraulica ogni anno, calcolato solo sulle funzioni davvero operative del gestionale commesse.">
+<link rel="stylesheet" href="assets/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <div>
+      <h1>Margine Idraulici</h1>
+      <p class="tagline">
+        Quanto lascia sul tavolo, ogni anno, un'impresa idraulica che lavora bene ma scrive male.
+        I numeri qui sotto escono solo dalle funzioni che nel gestionale commesse sono state
+        verificate una per una nel codice: quelle da configurare e quelle non ancora attivabili
+        stanno più in basso, e non entrano nel totale.
+      </p>
+    </div>
+    <button class="theme-toggle" id="theme-toggle" type="button">Chiaro / scuro</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="headline">
+    <div class="label">Recuperabile con il pannello così com'è</div>
+    <div class="amount" id="headline-amount">—</div>
+    <p class="note">
+      Solo funzioni operative: nessun abbonamento aggiuntivo, nessuna anagrafica da costruire
+      prima, nessuna promessa. Cambia i numeri qui sotto e il conto si rifà da solo.
+    </p>
+    <div class="breakdown">
+      <span>Interventi all'anno: <b id="stat-interventi">—</b></span>
+      <span>Per intervento: <b id="stat-intervento">—</b></span>
+      <span>Per tecnico: <b id="stat-tecnico">—</b></span>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn primary" id="print" type="button">Stampa o salva in PDF</button>
+    <button class="btn" id="reset" type="button">Rimetti i valori di partenza</button>
+  </div>
+
+  <section class="panel inputs">
+    <h2>I tuoi numeri</h2>
+    <p class="sub">
+      Sono tutti modificabili e restano salvati su questo dispositivo. Se un dato non lo sai,
+      lascia quello che trovi: sono valori prudenti per un'impresa idraulica italiana di due o tre persone.
+    </p>
+    <div class="fields" id="inputs"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Risultato economico</h2>
+    <p class="sub">
+      Cinque voci. Ognuna corrisponde a un flusso che è stato letto per intero nel codice di
+      <span style="font-family:var(--mono);font-size:.9em">gestionale_commesse</span> e che ha
+      test che lo coprono. Sotto ogni riga trovi la formula e le classi che la implementano.
+    </p>
+    <div class="rows" id="operative-rows"></div>
+  </section>
+
+  <section class="panel config">
+    <h2>Beneficio ottenibile con la configurazione per la tua attività</h2>
+    <p class="sub">
+      Il pannello sa già fare queste cose, ma parte spento. Non è un limite nascosto: è una scelta
+      del codice, che preferisce lasciare un campo a zero piuttosto che inventarsi il tuo prezzo orario.
+    </p>
+    <div class="callout warn">
+      <p>
+        <b>Questi importi non sono sommati sopra.</b> Diventano veri solo dopo che qualcuno inserisce
+        i tuoi numeri o collega il tuo account. Finché quel passaggio non avviene valgono zero, e il
+        gestionale si comporta esattamente come se la funzione non esistesse.
+      </p>
+    </div>
+    <div class="rows" id="config-rows"></div>
+    <div class="subtotal">
+      <span>Totale ottenibile dopo la configurazione</span>
+      <span class="value" id="config-subtotal">—</span>
+    </div>
+  </section>
+
+  <section class="panel future">
+    <h2>Beneficio futuro potenziale</h2>
+    <p class="sub">
+      Quello che non si può contare oggi, e il motivo preciso per cui non si può.
+    </p>
+    <div class="callout future">
+      <p>
+        <b>Niente di questa sezione entra in nessun totale.</b> Le cifre servono solo a dare un ordine
+        di grandezza di cosa ci sarebbe in gioco, se e quando il pezzo mancante venisse messo a posto.
+      </p>
+    </div>
+    <div class="rows" id="future-rows"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Come sono state classificate le funzioni</h2>
+    <p class="sub">
+      Nessuna funzione è stata data per pronta dal nome della classe. Per ognuna è stato seguito il
+      flusso completo — chi la chiama, cosa scrive a database, quali test la coprono — e ogni voce
+      è finita in uno di questi sei stati.
+    </p>
+    <div class="legend">
+      <div><b>Generica e operativa</b><span>Funziona per chiunque usi il pannello, idraulico o no. Entra nel risultato principale.</span></div>
+      <div><b>Già adatta agli idraulici</b><span>Pensata proprio per questo mestiere: extra fuori preventivo, caldaie, diritto di chiamata.</span></div>
+      <div><b>Richiede configurazione</b><span>Il codice c'è ed è testato, ma parte a zero o vuole un account esterno. Sezione arancione.</span></div>
+      <div><b>Parzialmente implementata</b><span>Fa la maggior parte del lavoro ma ha un buco dichiarato — subappalti a zero, festivi non riconosciuti.</span></div>
+      <div><b>In sviluppo</b><span>Non produce ancora l'effetto economico. Sezione viola, mai sommata.</span></div>
+      <div><b>Solo prevista o documentata</b><span>Esiste nella documentazione o come predisposizione, non come flusso funzionante.</span></div>
+    </div>
+  </section>
+
+  <footer class="site">
+    <p>
+      L'analisi completa — file, classi, stato reale, problema risolto, formula, confidenza e
+      dipendenze per ogni funzione — sta in
+      <a href="docs/analisi-gestionale-commesse.md">docs/analisi-gestionale-commesse.md</a>.
+    </p>
+    <p>
+      Le percentuali di partenza sono stime prudenti, non misure: il gestionale sa dire quanto
+      materiale è uscito fuori preventivo a consuntivo, ma nessuno può sapere in anticipo quanto ne
+      stai regalando adesso. I due numeri che spostano di più il totale sono la quota di materiale
+      extra non fatturato e i minuti che perdi oggi per rapportino e firma: mettici i tuoi, e il
+      risultato smette di essere una brochure.
+    </p>
+    <p>Gestionali Cavallini — Cavallini Service, Noale.</p>
+  </footer>
+
+</div>
+
+<script type="module" src="assets/app.js"></script>
+</body>
+</html>
