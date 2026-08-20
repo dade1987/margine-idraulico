@@ -49,10 +49,9 @@ Il sito viene servito all'indirizzo che GitHub ricava dal nome del repository:
 https://dade1987.github.io/margine-idraulico/
 ```
 
-**Se serve esattamente il percorso `/margine-idraulici/`**, l'unica strada è rinominare il
-repository in `margine-idraulici` (Impostazioni → General → Repository name). Tutti i
-riferimenti a file in questo progetto sono relativi, quindi dopo il cambio di nome il sito
-funziona senza modificare una riga.
+Tutti i riferimenti a file sono relativi, quindi il sito non dipende dal percorso su cui
+viene pubblicato: se un domani il repository cambia nome, o finisce sotto un dominio
+personalizzato, continua a funzionare senza modificare una riga.
 
 ## I numeri
 
