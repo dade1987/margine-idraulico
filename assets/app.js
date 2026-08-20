@@ -2,8 +2,8 @@ import { QUESTIONS, DEFAULTS, SISTEMI, SCALA_SISTEMI } from './quiz.js';
 import { computeAll } from './model.js';
 
 const WHATSAPP = '393911352526';
-const money = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
-const num = new Intl.NumberFormat('it-IT');
+const money = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0, useGrouping: 'always' });
+const num = new Intl.NumberFormat('it-IT', { useGrouping: 'always' });
 
 /* Le soglie decidono se alla fine si chiede qualcosa o no. Sotto la piu' bassa
    non si propone niente: a chi non ha margine da recuperare non si vende, gli
@@ -204,7 +204,7 @@ function renderResult() {
 
   s.append(
     el('p', 'eyebrow', 'Con le tue risposte'),
-    el('h2', 'result-title', 'Ogni anno lasci sul tavolo'),
+    el('h2', 'result-title', 'Ogni anno ti scappano'),
   );
 
   const amount = el('div', 'bignumber');
@@ -273,13 +273,16 @@ function revealRows(host, r, done) {
 
 function showEquivalence(node, r) {
   const t = r.operativeTotal;
-  const giornate = Math.round(t / (answers.costoOrarioAzienda * 8));
-  const interventi = Math.round(t / Math.max(60, answers.oreMedieIntervento * answers.prezzoOrarioVendita));
+  const alMese = Math.round(t / 12);
+  const perIntervento = r.derived.interventiAnno > 0 ? Math.round(t / r.derived.interventiAnno) : 0;
 
-  let text;
-  if (t < 800) text = 'Poco più di una giornata di lavoro. Nel tuo caso è davvero poca cosa.';
-  else if (giornate >= 20) text = `Sono ${num.format(giornate)} giornate di lavoro. Regalate ogni anno.`;
-  else text = `Sono ${num.format(giornate)} giornate di lavoro. Oppure ${num.format(interventi)} interventi fatti gratis.`;
+  // Al mese, perche' e' il periodo su cui un artigiano ragiona davvero e il
+  // conto lo rifa' a mente in un secondo. Poi per intervento, che e' la cifra
+  // che si riconosce: quella la vede uscire dal furgone tutti i giorni.
+  let text = `Sono ${money.format(alMese)} al mese.`;
+  if (perIntervento >= 2) {
+    text += ` Cioè ${money.format(perIntervento)} a intervento, moltiplicati per tutti quelli che fai in un anno.`;
+  }
 
   node.textContent = text;
   node.style.transition = 'opacity .6s ease';
@@ -310,8 +313,8 @@ function buildAfterReveal(host, r) {
     parte disonesta di ogni conto di questo tipo. */
 function timelineBlock(host, r) {
   const box = el('details', 'block timeline-block');
-  box.appendChild(el('summary', null, `In quanto tempo li recuperi. Il primo anno ${money.format(r.firstYear)}`));
-  box.appendChild(el('p', 'block-sub', `Non arriva tutto il primo giorno. Il primo anno ne vedi circa ${money.format(r.firstYear)}. Dal secondo anno vale il totale pieno.`));
+  box.appendChild(el('summary', null, `In quanto tempo li recuperi`));
+  box.appendChild(el('p', 'block-sub', `Non arriva tutto il primo giorno. Il primo anno ne vedi circa ${money.format(r.firstYear)}. Dal secondo in poi li vedi tutti.`));
 
   const line = el('div', 'timeline');
   const buckets = [
@@ -405,7 +408,7 @@ function ctaBlock(host, r) {
     ? `Non è lavoro in più da trovare. È lavoro che hai già fatto e che non è arrivato in fattura. In dieci minuti ti faccio vedere come il gestionale lo prende, sul tuo telefono, con un intervento vero dei tuoi.`
     : `${money.format(r.operativeTotal)} all'anno non ti cambiano la vita. Però non sono pochi. Se vuoi ti mostro in dieci minuti da dove escono. Senza impegno.`));
 
-  const testo = `Ciao Davide, ho fatto il quiz sul margine. Mi esce ${money.format(r.operativeTotal)} all'anno a regime, ${money.format(r.firstYear)} il primo anno${r.configTotal > 0 ? `, piu ${money.format(r.configTotal)} da configurare` : ''}. Vorrei vedere la demo del gestionale.`;
+  const testo = `Ciao Davide, ho fatto il quiz sul tuo sito. Mi esce ${money.format(r.operativeTotal)} all'anno${r.configTotal > 0 ? `, piu ${money.format(r.configTotal)} se configuro tutto` : ''}. Vorrei vedere come funziona il gestionale.`;
   const a = el('a', 'btn primary big whatsapp');
   a.href = `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(testo)}`;
   a.target = '_blank';
